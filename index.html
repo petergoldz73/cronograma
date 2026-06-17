@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cronograma">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Pedro — Cronograma</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #181818;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --text: #f0f0f0;
+    --muted: #666;
+    --muted2: #444;
+
+    --treino:    #22c55e;
+    --snow:      #22d3ee;
+    --aprender:  #a78bfa;
+    --trabalho:  #60a5fa;
+    --refeicao:  #fb923c;
+    --descanso:  #94a3b8;
+    --dormir:    #475569;
+    --pimentas:  #fbbf24;
+    --rotina:    #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 20px 20px 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .header-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .now-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .now-badge span { color: var(--text); }
+
+  /* DAY PROGRESS */
+  .progress-wrap {
+    margin: 16px 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--aprender), var(--treino));
+    border-radius: 99px;
+    transition: width 0.6s ease;
+  }
+  .progress-label {
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* TABS */
+  .tabs-wrap {
+    margin: 20px 0 0;
+    padding: 0 20px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tabs-wrap::-webkit-scrollbar { display: none; }
+
+  .tab {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tab.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+  }
+  .tab.fds { border-color: #fbbf2444; }
+  .tab.fds.active { background: var(--pimentas); border-color: var(--pimentas); color: #000; }
+  .tab .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--pimentas);
+    margin-left: 4px;
+    vertical-align: middle;
+    margin-bottom: 1px;
+  }
+
+  /* DAY NOTE */
+  .day-note {
+    margin: 16px 20px 0;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .day-note strong { color: var(--text); font-weight: 500; }
+
+  /* CURRENT SLOT HIGHLIGHT */
+  .current-block {
+    margin: 12px 20px 0;
+    padding: 14px;
+    border-radius: 12px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+  }
+  .current-block.visible { display: flex; }
+  .current-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+  .current-info { flex: 1; }
+  .current-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+  .current-desc { font-size: 14px; font-weight: 500; color: var(--text); }
+  .current-time { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* TIMELINE */
+  .timeline {
+    padding: 12px 20px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .slot {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    transition: opacity 0.2s;
+  }
+  .slot:last-child { border-bottom: none; }
+  .slot.past { opacity: 0.4; }
+  .slot.current-slot { opacity: 1; }
+
+  .slot-time {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    min-width: 38px;
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  .slot-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    padding-top: 5px;
+  }
+  .slot-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .slot-line {
+    width: 1px;
+    flex: 1;
+    min-height: 28px;
+    background: var(--border);
+    margin-top: 3px;
+  }
+
+  .slot-body { flex: 1; padding-bottom: 4px; }
+
+  .slot-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-bottom: 4px;
+    opacity: 0.9;
+  }
+
+  .slot-desc {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text);
+  }
+
+  .slot.past .slot-desc { color: var(--muted); }
+
+  /* Category colors */
+  .cat-treino    { background: #22c55e18; color: var(--treino); }
+  .cat-snow      { background: #22d3ee18; color: var(--snow); }
+  .cat-aprender  { background: #a78bfa18; color: var(--aprender); }
+  .cat-trabalho  { background: #60a5fa18; color: var(--trabalho); }
+  .cat-refeicao  { background: #fb923c18; color: var(--refeicao); }
+  .cat-descanso  { background: #94a3b818; color: var(--descanso); }
+  .cat-dormir    { background: #47556918; color: var(--dormir); }
+  .cat-pimentas  { background: #fbbf2418; color: var(--pimentas); }
+  .cat-rotina    { background: #6b728018; color: var(--rotina); }
+
+  /* LEGEND */
+  .legend {
+    margin: 0 20px 20px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .legend-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(13,13,13,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    gap: 4px;
+  }
+  .nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 0;
+    transition: color 0.15s;
+  }
+  .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .nav-btn.active { color: var(--text); }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .spacer-bottom { height: 72px; }
+
+  /* STATS VIEW */
+  .stats-grid {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .week-chart {
+    margin: 0 20px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .week-chart-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .week-bars { display: flex; gap: 6px; align-items: flex-end; height: 80px; }
+  .week-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .week-bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.4s ease; }
+  .week-bar-label { font-size: 10px; color: var(--muted); }
+
+  /* SETTINGS VIEW */
+  .settings-section { padding: 16px 20px 0; }
+  .settings-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-label { color: var(--text); }
+  .settings-row-value { color: var(--muted); font-size: 13px; }
+  .toggle {
+    width: 44px; height: 26px;
+    background: var(--surface2);
+    border-radius: 99px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.2s;
+  }
+  .toggle.on { background: var(--treino); }
+  .toggle.on::after { left: 21px; background: #fff; }
+</style>
+</head>
+<body>
+
+<!-- VIEW: AGENDA -->
+<div class="view active" id="view-agenda">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-name">Pedro</div>
+        <div class="header-title">Cronograma</div>
+      </div>
+      <div class="now-badge" id="clock-badge">⏱ <span id="clock-text">--:--</span></div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="day-progress" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0%</div>
+  </div>
+
+  <div class="tabs-wrap" id="tabs"></div>
+
+  <div class="day-note" id="day-note"></div>
+
+  <div class="current-block" id="current-block">
+    <div class="current-dot" id="current-dot"></div>
+    <div class="current-info">
+      <div class="current-label" id="current-label">Agora</div>
+      <div class="current-desc" id="current-desc"></div>
+      <div class="current-time" id="current-time-range"></div>
+    </div>
+  </div>
+
+  <div class="timeline" id="timeline"></div>
+
+  <div class="legend">
+    <div class="legend-title">Categorias</div>
+    <div class="legend-grid" id="legend-grid"></div>
+  </div>
+
+  <div class="spacer-bottom"></div>
+</div>
+
+<!-- VIEW: STATS -->
+<div class="view" id="view-stats">
+  <div class="header" style="padding-bottom:16px;">
+    <div class="header-name">Visão geral</div>
+    <div class="header-title">Sua semana</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Treinos / semana</div>
+      <div class="stat-value" style="color:var(--treino)">5×</div>
+      <div class="stat-sub">Seg Qua Sex + fds</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sono (meta)</div>
+      <div class="stat-value" style="color:var(--aprender)">7h</div>
+      <div class="stat-sub">22h → 05h</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Aprendizado</div>
+      <div class="stat-value" style="color:var(--aprender)">45<span style="font-size:14px">min</span></div>
+      <div class="stat-sub">todo dia útil</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pimentas</div>
+      <div class="stat-value" style="color:var(--pimentas)">3×</div>
+      <div class="stat-sub">Sex · Sáb · Dom</div>
+    </div>
+  </div>
+
+  <div class="week-chart">
+    <div class="week-chart-title">Blocos por dia</div>
+    <div class="week-bars" id="week-bars"></div>
+  </div>
+
+  <div class="legend" style="margin-top:0;">
+    <div class="legend-title">Distribuição semanal</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--treino)"></div>Corrida 3× / funcional 2×</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--snow)"></div>Snow 2× / dia</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--aprender)"></div>45min aprendizado matinal</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--pimentas)"></div>Pimentas Sex·Sáb·Dom</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--trabalho)"></div>Latin Re 9h–18h</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--dormir)"></div>7h de sono meta</div>
+    </div>
+  </div>
+
+  <div class="spacer-bottom"></div>
+</div>
+
+<!-- VIEW: SETTINGS -->
+<div class="view" id="view-settings">
+  <div class="header" style="padding-bottom:16px;">
+    <div class="header-name">Ajustes</div>
+    <div class="header-title">Preferências</div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label">Rotina</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <span class="settings-row-label">Acordar</span>
+        <span class="settings-row-value">05:00</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Dormir (meta)</span>
+        <span class="settings-row-value">22:00</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Saída pro trabalho</span>
+        <span class="settings-row-value">07:30–08:00</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Retorno</span>
+        <span class="settings-row-value">19:30–20:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label">Notificações</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <span class="settings-row-label">Lembrete de treino</span>
+        <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Hora de dormir</span>
+        <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Bloco de aprendizado</span>
+        <button class="toggle" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label">Snow</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <span class="settings-row-label">Passeio manhã</span>
+        <span class="settings-row-value">~15min</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Passeio noite</span>
+        <span class="settings-row-value">~30min</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer-bottom"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-agenda" onclick="switchView('agenda')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Agenda
+  </button>
+  <button class="nav-btn" id="nav-stats" onclick="switchView('stats')">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Semana
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="switchView('settings')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Config
+  </button>
+</div>
+
+<script>
+const CATS = {
+  treino:   { label: "Treino",      color: "#22c55e" },
+  snow:     { label: "Snow",        color: "#22d3ee" },
+  aprender: { label: "Aprendizado", color: "#a78bfa" },
+  trabalho: { label: "Trabalho",    color: "#60a5fa" },
+  refeicao: { label: "Refeição",    color: "#fb923c" },
+  descanso: { label: "Descanso",    color: "#94a3b8" },
+  dormir:   { label: "Sono",        color: "#475569" },
+  pimentas: { label: "Pimentas",    color: "#fbbf24" },
+  rotina:   { label: "Rotina",      color: "#6b7280" },
+};
+
+const NOTAS = {
+  Seg: "<strong>Segunda.</strong> Semana começa forte — corrida, Snow, inglês, e trabalho.",
+  Ter: "<strong>Terça.</strong> Funcional em casa. Foco em tecnologia e GitHub.",
+  Qua: "<strong>Quarta.</strong> Corrida de novo. Inglês no bloco matinal.",
+  Qui: "<strong>Quinta.</strong> Funcional + FL Studio no aprendizado.",
+  Sex: "<strong>Sexta.</strong> Corrida longa. Pimentas à noite após o trabalho.",
+  Sab: "<strong>Sábado.</strong> Pimentas pode durar o dia. Aproveite a manhã quando der.",
+  Dom: "<strong>Domingo.</strong> Recuperação. Pimentas fecha às 18h. Prepara a semana.",
+};
+
+const S = {
+  Seg: [
+    {t:"05:00",cat:"treino",  badge:"Treino",     desc:"Corrida 30–40min"},
+    {t:"05:45",cat:"snow",    badge:"Snow",        desc:"Passeio rápido com o Snow (~15min)"},
+    {t:"06:15",cat:"rotina",  badge:"Rotina",      desc:"Banho + café da manhã"},
+    {t:"06:45",cat:"aprender",badge:"Aprendizado", desc:"Inglês — listening ou vocabulário"},
+    {t:"07:30",cat:"rotina",  badge:"Rotina",      desc:"Deslocamento pro trabalho"},
+    {t:"09:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — expediente"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço"},
+    {t:"13:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — tarde"},
+    {t:"18:00",cat:"rotina",  badge:"Rotina",      desc:"Retorno pra casa"},
+    {t:"19:30",cat:"refeicao",badge:"Jantar",      desc:"Jantar"},
+    {t:"20:00",cat:"snow",    badge:"Snow",        desc:"Passeio principal com o Snow (~30min)"},
+    {t:"20:30",cat:"descanso",badge:"Descanso",    desc:"Leitura leve ou relaxar"},
+    {t:"22:00",cat:"dormir",  badge:"Sono",        desc:"Dormir — meta: 22h em ponto"},
+  ],
+  Ter: [
+    {t:"05:00",cat:"treino",  badge:"Treino",     desc:"Funcional em casa"},
+    {t:"05:45",cat:"snow",    badge:"Snow",        desc:"Passeio rápido com o Snow"},
+    {t:"06:15",cat:"rotina",  badge:"Rotina",      desc:"Banho + café da manhã"},
+    {t:"06:45",cat:"aprender",badge:"Aprendizado", desc:"Tecnologia — GitHub / VS Code / Power BI"},
+    {t:"07:30",cat:"rotina",  badge:"Rotina",      desc:"Deslocamento pro trabalho"},
+    {t:"09:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — expediente"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço"},
+    {t:"13:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — tarde"},
+    {t:"18:00",cat:"rotina",  badge:"Rotina",      desc:"Retorno pra casa"},
+    {t:"19:30",cat:"refeicao",badge:"Jantar",      desc:"Jantar"},
+    {t:"20:00",cat:"snow",    badge:"Snow",        desc:"Passeio principal com o Snow"},
+    {t:"20:30",cat:"descanso",badge:"Descanso",    desc:"Leitura leve ou relaxar"},
+    {t:"22:00",cat:"dormir",  badge:"Sono",        desc:"Dormir — meta: 22h"},
+  ],
+  Qua: [
+    {t:"05:00",cat:"treino",  badge:"Treino",     desc:"Corrida 30–40min"},
+    {t:"05:45",cat:"snow",    badge:"Snow",        desc:"Passeio rápido com o Snow"},
+    {t:"06:15",cat:"rotina",  badge:"Rotina",      desc:"Banho + café da manhã"},
+    {t:"06:45",cat:"aprender",badge:"Aprendizado", desc:"Inglês — reading ou podcast"},
+    {t:"07:30",cat:"rotina",  badge:"Rotina",      desc:"Deslocamento pro trabalho"},
+    {t:"09:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — expediente"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço"},
+    {t:"13:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — tarde"},
+    {t:"18:00",cat:"rotina",  badge:"Rotina",      desc:"Retorno pra casa"},
+    {t:"19:30",cat:"refeicao",badge:"Jantar",      desc:"Jantar"},
+    {t:"20:00",cat:"snow",    badge:"Snow",        desc:"Passeio principal com o Snow"},
+    {t:"20:30",cat:"descanso",badge:"Descanso",    desc:"Leitura leve ou relaxar"},
+    {t:"22:00",cat:"dormir",  badge:"Sono",        desc:"Dormir — meta: 22h"},
+  ],
+  Qui: [
+    {t:"05:00",cat:"treino",  badge:"Treino",     desc:"Funcional em casa"},
+    {t:"05:45",cat:"snow",    badge:"Snow",        desc:"Passeio rápido com o Snow"},
+    {t:"06:15",cat:"rotina",  badge:"Rotina",      desc:"Banho + café da manhã"},
+    {t:"06:45",cat:"aprender",badge:"Aprendizado", desc:"FL Studio — produção musical"},
+    {t:"07:30",cat:"rotina",  badge:"Rotina",      desc:"Deslocamento pro trabalho"},
+    {t:"09:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — expediente"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço"},
+    {t:"13:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — tarde"},
+    {t:"18:00",cat:"rotina",  badge:"Rotina",      desc:"Retorno pra casa"},
+    {t:"19:30",cat:"refeicao",badge:"Jantar",      desc:"Jantar"},
+    {t:"20:00",cat:"snow",    badge:"Snow",        desc:"Passeio principal com o Snow"},
+    {t:"20:30",cat:"descanso",badge:"Descanso",    desc:"Leitura leve ou relaxar"},
+    {t:"22:00",cat:"dormir",  badge:"Sono",        desc:"Dormir — meta: 22h"},
+  ],
+  Sex: [
+    {t:"05:00",cat:"treino",  badge:"Treino",     desc:"Corrida longa 40–50min"},
+    {t:"05:45",cat:"snow",    badge:"Snow",        desc:"Passeio rápido com o Snow"},
+    {t:"06:15",cat:"rotina",  badge:"Rotina",      desc:"Banho + café da manhã"},
+    {t:"06:45",cat:"aprender",badge:"Aprendizado", desc:"Revisão da semana — o que aprendi?"},
+    {t:"07:30",cat:"rotina",  badge:"Rotina",      desc:"Deslocamento pro trabalho"},
+    {t:"09:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — expediente"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço"},
+    {t:"13:00",cat:"trabalho",badge:"Trabalho",    desc:"Latin Re — tarde"},
+    {t:"18:00",cat:"pimentas",badge:"Pimentas",    desc:"Retorno + turno da sexta no Pimentas"},
+    {t:"00:00",cat:"dormir",  badge:"Sono",        desc:"Dormir — variável conforme o Pimentas"},
+  ],
+  Sab: [
+    {t:"07:00",cat:"treino",  badge:"Treino",     desc:"Corrida leve ou funcional"},
+    {t:"08:00",cat:"snow",    badge:"Snow",        desc:"Passeio com o Snow"},
+    {t:"08:30",cat:"rotina",  badge:"Café",        desc:"Café da manhã tranquilo"},
+    {t:"09:30",cat:"aprender",badge:"Livre",       desc:"Criação livre — malabares, música, idioma"},
+    {t:"10:00",cat:"pimentas",badge:"Pimentas",    desc:"Pimentas — pode durar até meia-noite (*)"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",      desc:"Almoço (antes ou durante o turno)"},
+    {t:"23:30",cat:"dormir",  badge:"Sono",        desc:"Dormir — conforme horário do bar"},
+  ],
+  Dom: [
+    {t:"07:30",cat:"dormir",  badge:"Sono",        desc:"Acordar mais tarde — recuperação do fds"},
+    {t:"08:00",cat:"treino",  badge:"Treino",      desc:"Treino leve em casa"},
+    {t:"08:45",cat:"snow",    badge:"Snow",         desc:"Passeio com o Snow"},
+    {t:"09:30",cat:"rotina",  badge:"Café",         desc:"Café da manhã"},
+    {t:"10:00",cat:"aprender",badge:"Projeto",      desc:"Projeto pessoal — o que quiser explorar"},
+    {t:"12:00",cat:"refeicao",badge:"Almoço",       desc:"Almoço"},
+    {t:"13:00",cat:"aprender",badge:"Livre",        desc:"Aprendizado solto — mortal, malabares, tech"},
+    {t:"14:00",cat:"pimentas",badge:"Pimentas",     desc:"Pimentas — fecha às 18h"},
+    {t:"18:30",cat:"descanso",badge:"Lazer",        desc:"Tempo livre / social"},
+    {t:"20:00",cat:"refeicao",badge:"Jantar",       desc:"Jantar"},
+    {t:"20:30",cat:"snow",    badge:"Snow",          desc:"Passeio com o Snow"},
+    {t:"21:30",cat:"rotina",  badge:"Rotina",        desc:"Preparar a semana seguinte"},
+    {t:"22:30",cat:"dormir",  badge:"Sono",          desc:"Dormir — preparar pra segunda"},
+  ],
+};
+
+const DIAS = ["Seg","Ter","Qua","Qui","Sex","Sab","Dom"];
+const FDS = ["Sab","Dom"];
+let diaAtivo = DIAS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+function toMin(t) {
+  const [h,m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function pad(n) { return String(n).padStart(2,"0"); }
+
+function getNowMin() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+
+// Build tabs
+const tabsEl = document.getElementById("tabs");
+DIAS.forEach(d => {
+  const btn = document.createElement("button");
+  btn.className = "tab" + (FDS.includes(d) ? " fds" : "") + (d === diaAtivo ? " active" : "");
+  btn.innerHTML = d + (FDS.includes(d) ? '<span class="dot"></span>' : "");
+  btn.onclick = () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    diaAtivo = d;
+    render();
+  };
+  tabsEl.appendChild(btn);
+});
+
+// Legend
+const legendGrid = document.getElementById("legend-grid");
+Object.entries(CATS).forEach(([k, v]) => {
+  legendGrid.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${v.color}"></div>${v.label}</div>`;
+});
+
+function render() {
+  document.getElementById("day-note").innerHTML = NOTAS[diaAtivo] || "";
+  const slots = S[diaAtivo] || [];
+  const nowMin = getNowMin();
+  const isToday = diaAtivo === DIAS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+  // Progress
+  const dayStart = 5 * 60, dayEnd = 22 * 60;
+  let pct = 0;
+  if (isToday) {
+    pct = Math.max(0, Math.min(100, Math.round((nowMin - dayStart) / (dayEnd - dayStart) * 100)));
+  }
+  document.getElementById("day-progress").style.width = pct + "%";
+  document.getElementById("progress-label").textContent = isToday ? pct + "%" : "";
+
+  // Current slot
+  let currentIdx = -1;
+  if (isToday) {
+    for (let i = 0; i < slots.length; i++) {
+      const start = toMin(slots[i].t);
+      const end = i < slots.length - 1 ? toMin(slots[i+1].t) : 24*60;
+      if (nowMin >= start && nowMin < end) { currentIdx = i; break; }
+    }
+  }
+
+  const cb = document.getElementById("current-block");
+  if (currentIdx >= 0) {
+    const cs = slots[currentIdx];
+    const c = CATS[cs.cat];
+    cb.classList.add("visible");
+    cb.style.background = c.color + "18";
+    cb.style.border = "1px solid " + c.color + "44";
+    document.getElementById("current-dot").style.background = c.color;
+    document.getElementById("current-label").textContent = "Agora — " + cs.badge;
+    document.getElementById("current-label").style.color = c.color;
+    document.getElementById("current-desc").textContent = cs.desc;
+    const nextT = currentIdx < slots.length - 1 ? slots[currentIdx+1].t : "—";
+    document.getElementById("current-time-range").textContent = cs.t + " → " + nextT;
+  } else {
+    cb.classList.remove("visible");
+  }
+
+  // Timeline
+  const tl = document.getElementById("timeline");
+  tl.innerHTML = slots.map((s, i) => {
+    const c = CATS[s.cat] || CATS.rotina;
+    const isPast = isToday && getNowMin() > toMin(s.t) && i !== currentIdx;
+    const isCurrent = i === currentIdx;
+    const hasLine = i < slots.length - 1;
+    return `<div class="slot${isPast ? " past" : ""}${isCurrent ? " current-slot" : ""}">
+      <span class="slot-time">${s.t}</span>
+      <div class="slot-indicator">
+        <div class="slot-dot" style="background:${isCurrent ? c.color : (isPast ? "var(--muted2)" : c.color + "88")}"></div>
+        ${hasLine ? '<div class="slot-line"></div>' : ""}
+      </div>
+      <div class="slot-body">
+        <span class="slot-badge cat-${s.cat}">${s.badge}</span>
+        <div class="slot-desc">${s.desc}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Clock
+function updateClock() {
+  const n = new Date();
+  document.getElementById("clock-text").textContent = pad(n.getHours()) + ":" + pad(n.getMinutes());
+}
+
+// Week bars
+const barData = { Seg:13, Ter:13, Qua:13, Qui:13, Sex:11, Sab:7, Dom:13 };
+const maxBar = Math.max(...Object.values(barData));
+const barsEl = document.getElementById("week-bars");
+DIAS.forEach(d => {
+  const h = Math.round((barData[d] / maxBar) * 70);
+  const color = FDS.includes(d) ? "#fbbf24" : "#60a5fa";
+  barsEl.innerHTML += `<div class="week-bar-wrap">
+    <div class="week-bar" style="height:${h}px;background:${color}44;border-top:2px solid ${color}"></div>
+    <div class="week-bar-label">${d}</div>
+  </div>`;
+});
+
+function switchView(v) {
+  document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
+  document.getElementById("view-" + v).classList.add("active");
+  document.getElementById("nav-" + v).classList.add("active");
+}
+
+updateClock();
+setInterval(() => { updateClock(); render(); }, 30000);
+render();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
+</body>
+</html>
